@@ -14,7 +14,7 @@ public class NetworkServer {
 
 	private ServerSocket server;
 	private ArrayList<Socket> clients;
-	private MessageHandler messageHandler;
+	private IMessageHandler messageHandler;
 
 	public NetworkServer() {
 		try {
@@ -32,11 +32,11 @@ public class NetworkServer {
 		return this.clients;
 	}
 
-	public MessageHandler getMessageHadler() {
+	public IMessageHandler getMessageHadler() {
 		return this.messageHandler;
 	}
 
-	public void setMessageHadler(MessageHandler handler) {
+	public void setMessageHadler(IMessageHandler handler) {
 		this.messageHandler = handler;
 	}
 

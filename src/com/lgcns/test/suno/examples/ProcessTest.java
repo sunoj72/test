@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import com.lgcns.test.suno.thread.ProcessThread;
-import com.lgcns.test.suno.util.LogUtil;
-import com.lgcns.test.suno.util.PathUtil;
-import com.lgcns.test.suno.util.ProcessUtil;
+import com.lgcns.test.util.LogUtil;
+import com.lgcns.test.util.PathUtil;
+import com.lgcns.test.util.ProcessUtil;
 
 public class ProcessTest {
 

@@ -1,26 +1,22 @@
 package com.lgcns.test.suno.thread;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.util.List;
+import java.util.Scanner;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import com.lgcns.test.suno.util.LogUtil;
-import com.lgcns.test.suno.util.PathUtil;
+import com.lgcns.test.util.FileUtil;
+import com.lgcns.test.util.LogUtil;
 
 public class ProcessThread extends Thread {
-	private String threadName = null;
 	private Process process = null;
 	private List<String> exec = null;
 	private ConcurrentLinkedQueue<String> messages = new ConcurrentLinkedQueue<>() ;
-	
-//	private Queue<String> messagesEx = new ConcurrentLinkedQueue<>(1000) ;
 
 	public ProcessThread(String name, List<String> exec) {
-//		this.threadName = name;
 		this.setName(name);
 		this.exec = exec;
 	}
@@ -32,19 +28,11 @@ public class ProcessThread extends Thread {
 			//pb.redirectErrorStream(true);
 			process = pb.start();
 
-			// Buffer Process
-//			InputStream is = process.getInputStream();
-//			byte[] buffer = new byte[1024];
-//	        int n = 0;
-//	        while ((n = is.read(buffer)) != -1) {
-//	        	String tmp = new String(buffer, 0, n);
-//				LogUtil.printLog(String.format("\t%s", tmp));
-//	        }
-
 			// Line Process
 			String line;
-			BufferedReader reader = PathUtil.getReader(process.getInputStream());
-	        while ((line = reader.readLine()) != null) {
+			Scanner reader = FileUtil.getReader(process.getInputStream());
+			while (reader.hasNextLine()) {
+				line = reader.nextLine();
 	        	messages.offer(line);
 				LogUtil.printLog(String.format("[%s] %s", this.getName(), line));
 			}
@@ -89,12 +77,12 @@ public class ProcessThread extends Thread {
 		return process.getOutputStream();
 	}
 
-	public BufferedWriter getWriter() {
+	public PrintWriter getWriter() {
 		if (process == null) {
 			return null;
 		}
 		
-		return PathUtil.getWriter(process.getOutputStream());
+		return FileUtil.getWriter(process.getOutputStream());
 	}
 
 	public Process getProcess() {

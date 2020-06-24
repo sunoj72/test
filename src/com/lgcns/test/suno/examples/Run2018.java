@@ -2,8 +2,8 @@ package com.lgcns.test.suno.examples;
 
 import com.lgcns.test.suno.model.IMessageExecutor;
 import com.lgcns.test.suno.model.SimpleMessageExecutor;
-import com.lgcns.test.suno.util.Shell;
-import com.lgcns.test.suno.util.ShellCharacterMode;
+import com.lgcns.test.util.Shell;
+import com.lgcns.test.util.ShellCharacterMode;
 
 public class Run2018 {
 

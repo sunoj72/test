@@ -2,7 +2,7 @@ package com.lgcns.test.suno.net.controller;
 
 import com.lgcns.test.suno.net.model.Message;
 
-public class ConsoleMessageHandler implements MessageHandler {
+public class ConsoleMessageHandler implements IMessageHandler {
 
   public synchronized Message processMessage(Message request) {
     // TODO: build Response Message
