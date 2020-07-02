@@ -8,64 +8,71 @@ import java.util.ArrayList;
 import com.lgcns.test.net.model.IMessageHandler;
 import com.lgcns.test.net.model.ServerMessageHandler;
 
-public class Server {
-	private static final int PORT = 7777;
-
-	private ServerSocket server;
-	private ArrayList<Socket> clients;
-	private IMessageHandler messageHandler;
+public class Server extends Thread {
+	public int port = 7777;
+	public ServerSocket server;
+	public ArrayList<Connection> clients = new ArrayList<>();
+	public IMessageHandler messageHandler;
 
 	public Server() {
-		try {
-			messageHandler = new ServerMessageHandler();
-			server = new ServerSocket(PORT);
-			server.setReuseAddress(true);
-			System.out.println("Accepting clients...");
-		} catch (IOException e) {
-			System.out.println(e.getStackTrace());
-		}
-
-		this.clients = new ArrayList<>();
 	}
 
-	public ArrayList<Socket> getClients() {
-		return this.clients;
-	}
+	@Override
+	public void run() {
+    try {
+      messageHandler = new ServerMessageHandler(this);
+      server = new ServerSocket(port);
+      server.setReuseAddress(true);
+      System.out.println("Accepting clients...");
+    } catch (IOException e) {
+      System.out.println(e.getStackTrace());
+    }
 
-	public IMessageHandler getMessageHadler() {
-		return this.messageHandler;
-	}
-
-	public void setMessageHadler(IMessageHandler handler) {
-		this.messageHandler = handler;
-	}
-
-	public void startServer() {
-		Socket client;
+	  Socket client;
 		
 		while (true) {
-			// wait for a client
 			try {
+			  if (this.isInterrupted()) {
+          return;
+			  }
+
 				client = server.accept();
-				clients.add(client);
 				System.out.println("New client accepted..." + client.getRemoteSocketAddress());
 				System.out.println("Total Users: " + clients.size());
 
-				ClientHandler handler = new ClientHandler(client, this);
+				Connection handler = new Connection(client, this);
+				clients.add(handler);
+				
 				Thread thread = new Thread(handler);
 				thread.start();
-				
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
 	}
+  
+  public Thread startServer() {
+    this.start();
+    
+    return this;
+  } 
 	
 	public void stopServer() {
+	  this.interrupt();
+    System.out.println("Service closed");
 	}	
 
 	public static void main(String[] args) throws IOException {
-		new Server().startServer();
+	  Server server = new Server();
+	  server.port = 5555;
+	  server.startServer();
+	  
+	  try {
+      Thread.sleep(10 * 1000);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
+	  
+	  server.stopServer();
 	}
 }
