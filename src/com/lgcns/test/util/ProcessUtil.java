@@ -38,6 +38,40 @@ public class ProcessUtil {
 			
 		return sb.toString();
 	}
+
+  public static String executeWithReturn(String command) throws IOException, InterruptedException {
+    return executeWithReturn(command, 0, 1);
+  }
+	
+  public static String executeWithReturn(String command, int skipLines, int waitLines) throws IOException, InterruptedException {
+    StringBuilder sb = new StringBuilder();
+    Runtime rt = Runtime.getRuntime();
+    Process ps = rt.exec(command);
+    Scanner scan = new Scanner(ps.getInputStream()); 
+    
+    int i = 0, skip = 0;
+    while (scan.hasNextLine()) {
+      String line = scan.nextLine();
+      
+      if (skipLines > skip ) {
+        skip++;
+        continue;
+      }
+      
+      sb.append(String.format("%s\n", line));
+      i++;
+      
+      if (waitLines > 0 && i >= waitLines) {
+        break;
+      }
+    }
+    
+    ps.waitFor();
+    scan.close();
+      
+    return sb.toString();
+  }
+
 	
 //	public static void main(String[] args) {
 //		ArrayList<String> exec = new ArrayList<>();

@@ -1,4 +1,4 @@
-package com.lgcns.test.suno.thread;
+package com.lgcns.suno.thread;
 
 import java.io.IOException;
 import java.io.InputStream;
