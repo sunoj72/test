@@ -11,13 +11,13 @@ public class DateUtil {
 	public static final SimpleDateFormat formatDateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
   public static final SimpleDateFormat formatTime = new SimpleDateFormat("HH:mm:ss");
   
-	public static Date addSeconds(Date date, int value) {
+	public static synchronized Date addSeconds(Date date, int value) {
 		Date result = new Date(date.getTime() + (value * 1000));  
 		
 		return result;
 	}
 	
-	public static Date addDays(Date date, int value) {
+	public static synchronized Date addDays(Date date, int value) {
 		Calendar cal = Calendar.getInstance();
 		cal.setTime(date);
 		cal.add(Calendar.DATE, value);
@@ -30,8 +30,19 @@ public class DateUtil {
 	  return format.parse(date);
 	}
   
-  public static Date max(Date dt1, Date dt2) {
+  public static synchronized Date max(Date dt1, Date dt2) {
     return (dt1.getTime() >= dt2.getTime()) ? dt1 : dt2;
+  }
+
+  public static synchronized String getSecondWithDateFormat(long l) {
+    long c = l;
+    int h = (int)c/ 3600;
+    c = c - (h * 3600);
+    int m = (int)c/ 60;
+    c = c - (m * 60);
+    int s = (int)c;
+    
+    return String.format("%02d:%02d:%02d", h, m, s);
   }
 	
 //	public static Date add(Date date, int value) {

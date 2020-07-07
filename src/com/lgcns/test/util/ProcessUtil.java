@@ -4,8 +4,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Scanner;
 
-import com.lgcns.test.suno.thread.ProcessThread;
-
 public class ProcessUtil {
 	public static String executeWithReturn(List<String> exec) throws IOException, InterruptedException {
 		return executeWithReturn(exec, 0, 1);
@@ -39,14 +37,6 @@ public class ProcessUtil {
 		scan.close();
 			
 		return sb.toString();
-	}
-
-	@Deprecated
-	public static ProcessThread executeWithThread(String name, List<String> exec) {
-		ProcessThread thread = new ProcessThread(name, exec);
-		thread.startThread();
-		
-		return thread;
 	}
 	
 //	public static void main(String[] args) {

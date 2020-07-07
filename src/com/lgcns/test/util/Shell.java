@@ -2,33 +2,35 @@ package com.lgcns.test.util;
 
 import java.util.Scanner;
 
-import com.lgcns.test.suno.model.IMessageExecutor;
+enum ShellMode {
+  IGNORE_CASE,
+  CASESENSITIVE,
+  UPPER_CASE,
+  LOWER_CASE
+}
 
-
-public class Shell  {
-	private Thread thread = null;
+class Shell  {
+	public Thread thread = null;
+	
 	public class Console implements Runnable {
-		private ShellMode charMode = ShellMode.UPPER_CASE;
-		private String exit = "EXIT";
-		private boolean appExit = false;
-		private IMessageExecutor executor = null;
+		public ShellMode charMode = ShellMode.UPPER_CASE;
+		public String exit = "EXIT";
+		public boolean appExit = false;
+//		public IMessageExecutor executor = null;
 		
-		public Console (ShellMode mode, String exitCmd, boolean applicationExit, IMessageExecutor executor) {
+//    public Console (ShellMode mode, String exitCmd, boolean applicationExit, IMessageExecutor executor) {
+		public Console (ShellMode mode, String exitCmd, boolean applicationExit) {
 			this.charMode = mode;
 			this.exit = exitCmd;
 			this.appExit = applicationExit;
-			this.executor = executor;
+//			this.executor = executor;
 		}
 
 		@Override
-		@SuppressWarnings("resource")
 		public void run() {
 			String line = "";
-			Scanner scanner = null;
-
-			try {
-				scanner = new Scanner(System.in);
-				
+			
+			try (Scanner scanner = new Scanner(System.in)) {
 				while (true) {
 					// 문자열 처리
 					if (this.charMode == ShellMode.UPPER_CASE) { line = scanner.nextLine().trim().toUpperCase(); }
@@ -49,11 +51,11 @@ public class Shell  {
 						}
 					}
 					
-					// 라인 처리
-					if (this.executor != null) {
-						this.executor.execute(line);
-					}
-
+					// TODO:명령처리
+					System.out.println(line);
+          //if (this.executor != null) {
+          //	this.executor.execute(line);
+          //}
 					
 					// 스레드 인터럽트 처리
 					Thread.sleep(1);
@@ -70,8 +72,9 @@ public class Shell  {
 		
 	}
 	
-	public void start(ShellMode mode, String exitCmd, boolean applicationExit, IMessageExecutor executor) {
-		Console console = new Console(mode, exitCmd, applicationExit, executor);
+//  public void start(ShellMode mode, String exitCmd, boolean applicationExit, IMessageExecutor executor) {
+	public void start(ShellMode mode, String exitCmd, boolean applicationExit) {
+		Console console = new Console(mode, exitCmd, applicationExit);
 		thread = new Thread(console);
 		thread.start();
 	}

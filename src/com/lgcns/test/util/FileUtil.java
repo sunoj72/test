@@ -11,7 +11,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
 import java.util.Scanner;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class FileUtil {
 	public static Scanner getReader(String filename) {
@@ -91,6 +96,22 @@ public class FileUtil {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public static List<String> readFileLines(String filename) {
+	  List<String> lines = null;
+	  
+    try (Stream<String> stream = Files.lines(Paths.get(filename))) {
+      //lines = stream.filter(line -> !line.startsWith("FOO"))
+      //              .map(String::toUpperCase)
+      //              .collect(Collectors.toList());
+      
+      lines = stream.collect(Collectors.toList());
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+	  
+	  return lines;
 	}
 	
 //	public static void main(String[] args) {

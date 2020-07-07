@@ -8,8 +8,8 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Scanner;
 
-import com.lgcns.test.suno.net.model.Message;
-import com.lgcns.test.suno.net.util.MessageBuilder;
+import com.lgcns.test.net.model.Message;
+import com.lgcns.test.net.util.MessageBuilder;
 
 public class Client implements Runnable {
 	// private MessageHandler messageHandler;

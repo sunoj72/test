@@ -2,9 +2,18 @@ package com.lgcns.test.util;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 
 public class CryptoUtil {
-	public static String getMD5(String msg) {
+  public static String encode64(String msg) {
+    return new String(Base64.getEncoder().encode(msg.getBytes()));
+  }
+  
+  public static String decode64(String msg) {
+    return new String(Base64.getDecoder().decode(msg));
+  }
+
+  public static String getMD5(String msg) {
 		try {
 			MessageDigest md = MessageDigest.getInstance("MD5");
 			return toHexString(md.digest(msg.getBytes()));
@@ -39,6 +48,7 @@ public class CryptoUtil {
 
 	    return hexString.toString();
 	}
+	
 	
 //	public static void main(String[] args) {
 //		String test = "asdfassdcvbcvbgyy3ert356754hjkhj,8906854t34";
