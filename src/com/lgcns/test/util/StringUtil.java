@@ -7,7 +7,7 @@ public class StringUtil {
 		String line;
 		Scanner cin = new Scanner(System.in);
 		
-		line = cin.nextLine().toUpperCase();
+		line = cin.nextLine();
 		cin.close();
 		
 		return line;

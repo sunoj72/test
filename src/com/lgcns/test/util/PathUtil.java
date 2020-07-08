@@ -79,6 +79,17 @@ public class PathUtil {
 
 	    return result;
 	}
+  
+  public static void createDirectory(String path) {
+    Path dir = Paths.get(path);
+    if (!Files.exists(dir)) {
+      try {
+        Files.createDirectories(dir);
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
+  }
 
 //	public static void main(String[] args) {
 //		System.out.println(findFile("INPUT.TXT", "D:/project"));

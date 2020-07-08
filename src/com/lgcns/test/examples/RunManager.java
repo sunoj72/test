@@ -9,19 +9,18 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Scanner;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import com.lgcns.test.util.DateUtil;
 import com.lgcns.test.util.FileUtil;
 
 public class RunManager {
+  public static HashMap<String, Bus> busMap = new HashMap<>();
+
   public static BusList buslist  = new BusList();
   public static StationList stationlist  = new StationList();
-  
-  public static ConcurrentHashMap<String, Bus> busMap = new ConcurrentHashMap<>();
-  public static ConcurrentHashMap<String, BusList> busStatus = new ConcurrentHashMap<>();
 
   public static Bus noBus = new Bus ("NOBUS", null, 0);
   
@@ -29,6 +28,11 @@ public class RunManager {
   public static Comparator<Bus> predSort = (o1, o2) -> o1.predLocation - o2.predLocation;
   public static Comparator<String> nameSort = (o1, o2) -> o1.compareTo(o2);
   public static Comparator<Station> locationStSort = (o1, o2) -> o1.location - o2.location;
+
+  //ex) LinkedHashMap Sort
+  //public static Comparator<Map.Entry<String, Bus>> idSort = (o1, o2) -> o1.getValue().name.compareTo(o2.getValue().name);
+  //LinkedList<Map.Entry<String, Bus>> list = new LinkedList<>(map.entrySet());
+  //Collections.sort(list, idSort);
   
   
   public static void main(String[] args) {
