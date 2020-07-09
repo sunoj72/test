@@ -6,7 +6,6 @@ public class StringUtil {
 	public static String readLineFromConsole() {
 		String line;
 		Scanner cin = new Scanner(System.in);
-		
 		line = cin.nextLine();
 		cin.close();
 		

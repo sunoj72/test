@@ -4,11 +4,6 @@ import java.net.Socket;
 
 public class NetworkUtil {
 
-  public static void main(String[] args) {
-    // TODO Auto-generated method stub
-
-  }
-
   public static void sendFile(Socket conn, String filename) {
     
   }
@@ -25,4 +20,6 @@ public class NetworkUtil {
     
   }
 
+  public static void main(String[] args) {
+  }
 }
