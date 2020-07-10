@@ -1,0 +1,393 @@
+
+----------------------------------------------------------------------------------------------
+1. Cloud 서비스 
+1-1) AWS 
+----------------------------------------------------------------------------------------------
+1-1-1) 개발 가이드 
+1-1-1-1) 소프트웨어 아키텍처 개요
+- 아키텍처 목표
+  . 대용량의 큰 서버보다 작은 서버 여러개로 부하분산하여 scale-out 수행 
+  . write/read 각각의 DB를 나누고, 부하분산을 위해 업무별 DB 분리구성 
+  . 어플리케이션을 분산하여 독립적으로 배포/실행 
+  . 모든 자원은 쉽게 만들어지고 폐기하고 모니터링 할 수 있어야 한다
+- 아키텍처 개요 
+  . AWS 에서는 multicast 가 지원되지 않는다(-> RAC 지원 안됨) 
+  . on-premise는 monolithic 아키텍처가 기본, cloud 환경은 distributed 아키텍처가 기본 
+  . 클라우드에서는 다음과 같이 아키텍처 유형이 나뉜다 
+    > monolithic 으로 하나의 app/DB를 구성하고, 그것을 auto-scaling 구성함(lift&shift) 
+    > Read 분산분산 아키텍처로 read replica를 구성하고 app도 read 프로그램 별도 구성 
+    > 업무별 분산 아키텍처 
+    > 샤딩아키텍처 (한 업무에 대한 write 부하분산) 
+    
+1-1-1-2) 소프트웨어 아키텍처 설계 및 구현 
+- 서비스 분배  
+  . Centralized - 서비스간 호출이 ELB를 통함 (서비스 호출을 중앙에서 통제) 
+  . Decentralized - 서비스간 호출이 L4를 통함 (클러스터 단위마다 L4장비 필요)
+  . Distributed - 서비스 호출에 필요한 모든 정보가 Instance에 replication 됨 (서비스 단위 LB) 
+
+  a.서비스 디스커버리 방식 
+    . AWS API Gateway 서비스를 통해 분산된 서비스 호출 기능 제공 // = OSS Eureka 
+
+  b.서비스 분배 방식 
+    . 디스커버리 없이 ELB나 HA proxy를 통해 port/uri로 분배 (부하 분산) 
+    
+- 서비스 연계 
+  a. 분산트랜잭션 : 동기/2 PC 
+  b. 분산 서비스 호출 :  동기/1PC  (=RestAPI) 
+  c. 메세지큐  : 비동기 / 1PC (=kafka) 
+
+- RestAPI 연계 
+ > Gateway Server - API Gateway , 다양한API 호출에 대해 공통 처리 가능, 복잡한 구현 필요
+ > Proxy Server(L4) - ELB , 간단히 고가용성/부하분산 제공, auto scale-out 구성이 어렵고 API 필요 기능 직접 구현 필요 
+ > DNS - Route53, 공개 인터페이스 구성시 간단히 제공, fail node에 대한 dns entry 변경 로직 필요 
+  
+
+- 세션처리 : 클라우드 환경에서는 stateless 하게 설계, 분산환경에서는 세션 정보의 공유에 어려움이 있다. 
+ > 단일 인스턴스에서 스프링 세션 처리 
+  . spring security 
+  . non-spring security 
+ > 분산 session 도구(session clustering) 사용 
+ > Spring + redis 사용 
+ > Tomcat + Dynamo DB 
+ > Lena 
+ 
+- 분산 환경 구성 
+ > Multi Datasource : read/write 분리, 업무별 DB분리, 샤딩 으로 인함 
+ 
+- 정적 컨텐츠 처리  : S3에 정적컨텐츠 저장 후 CloudFront 등을 통해서 edge cache를 사용한다. 
+- WebServer + ELB 연계 : auto scaling 을 위해 ELB와 연계한다. 
+1-1-1-3) 빌드/배포 
+- AWS에서는 CodeCommit을 통해 소스 형상관리를 한다(=git repository) 
+- CodeBuild로 빌드환경 구성하고 S3에 빌드된 결과물을 저장하고, CodeDeploy를 사용하여 배포한다. 
+- CodePipeline으로 개별 모듈에 대해 빌드 자동화를 구성한다. 
+- Lambda를 사용해 공통 모듈에 대한 빌드 자동화를 수행할 수 있다. 
+----------------------------------------------------------------------------------------------
+1-1-2) 아키텍처 가이드 
+1-1-2-1) 아키텍처 특징 
+- 특징 
+ . 모든 리소스는 프로그래밍 가능한 형태로 존재 (IaaC) 
+ . 글로벌한, 가용한, 무제한 용량 
+ . 높은 수준의 관리 서비스 
+ . 보안 기능 내장 
+- 구조 : Physical / Logical // Platform Layer /Service Layer
+- 서비스 모델 : IaaS, PaaS, SaaS 
+
+  
+1-1-2-2) 통합 아키텍처 설계 
+- 전환 모델 
+   > Rehost : 변경 없이 클라우드 이관 > 기존 아키텍처 + 기존SW 라이센스 + app 수정 최소화 
+   > Replace : 일부 기능 대체 변경 > 기존 아키텍처 최대한 유지 + 기존SW 라이센스 업그레이드/신규SW(manaaged service 등) 도입 + app 수정 발생/ 비즈니스 변경 최소화
+   > Refactor : 전체 클라우드 전환 > 클라우드 아키텍처 도입 + 클라우드 maanged 서비스 도입 + app 수정 및 비즈니스 변경 필요 
+
+- 변경 요소 
+   > 인프라 
+     . 서버 인스턴스 : Unix 기반 하드웨어(IMB P-series, HP Itanium) 사용불가
+     . 서버 운영체제 : Unix 기반 운영체제(AIX, HPUX) 사용불가
+     . 서버 간 통신 : IP 기반 peer2peer를 LB같은 end-point 방식으로 대체 
+     . 부하 분산 장비 : L4를 SW방식으로 대체 필요 
+     . Appliance 장비 : 대체 가능한 sw로 변경 필요 
+     
+   > 솔루션 
+     . 공통 : x86기반 라이센스 이전 가능 여부 확인 
+     . 미들웨어 : x86기반 서버/운영체제 지원 여부 확인(compile언어 - C 계열 app의 경우 의존성이 강함)  
+     . DBMS : x86기반 서버/운영체제 지원 가능 여부 확인. Oracle RAC 사용불가하여 이중화 고려. 타DBMS 전환 고려 
+     . 보안 : x86기반 서버/운영체제 지원 가능 여부 확인. Appliance 보안 사용 불가하여 대체 필요 
+     . 운영관리 : x86기반.. 확인. 클라우드 환경에 적합한지 확인 
+     . 빌드/배포 : x86기반.. 확인. 클라우드 환경에 적합한지 확인 
+
+- 변경 요소 
+  > 확장에 대한 설계 : 서버 인스턴스 그룹화, LB구성, stateless 구성, scale-in 구성 
+  > 느슨한 결합 구조 : 메세지 순서 보장, 메세지 중복 처리, 메세지 반환, 일괄처리, 대기열 구성 
+  > 자동화 설계 : app 오류에 대한 처리. 자동화 구성에 대한 검증 
+  > 장애 복구 설계 : app 상태정보 저장. 비동기 분산처리 구성. 로그 저장/조회. SPoF 제거 
+  > 다중처리 설계  : 병렬 처리 구성 
+  > 성능에 대한 설계 : 읽기/쓰기 분리구성, 메모리 기반 아키텍처 구성, 정적 데이터 처리 
+  > 정합성에 대한 설계 : 데이터 파티셔닝, app 레벨 일관성 유지 설계 
+
+- 참조 아키텍처 
+  > N-Tier 아키텍처 : 각 계층이 별도 시스템에서 실행. 계층화된 아키텍처를 사용하는 app을 마이그레이션 함. IaaS 또는 IaaS + 관리 서비스 
+  > Queue-worker 아키텍처 : Front-end와 worker 사이에 queue를 두어 비동기방식으로 처리. 자원 집약적 업무요건에 적합하나 복잡한 업무요건 처리시 요청간 종속처리 관리 어려움 
+  > Microservice 아키텍처 : 전체 비즈니스를 단독으로 실행가능한 독립 서비스들로 분리구성. API 호출을 통해 상호 연계.관리 복잡성이 증가한다. 개발/테스트가 신속해진다. 
+  > CQRS 아키텍처 : DB에 대한 read/write 작업을 분리. 워크로드 별로 확장이 가능하며 대규모 사용자 업무가 집중되는 데이터 아키텍처에서 적용한다. 
+
+- 아키텍처 레퍼런스 모델 
+  > (생략) 
+  
+- 서비스 분산 설계 
+  > 중복 Entity 처리방안 
+     . Shared DB :          복제X, 적시성上, 대량쓰기上, 대량읽기上, 응답성上  // 부하분산 불가하여 높은 부하시스템에서 사용불가 
+     . DB Link :            복제X, 적시성上, 대량쓰기上, 대량읽기下, 응답성中 // 원격지 DB연결, 네트워크 타야해서 읽기 성능 저하 
+     . Replication/CDC :    복제O, 적시성中, 대량쓰기中, 대량읽기上, 응답성上 // 변경분에 대한 CDC로 쓰기 작업 저하 
+     . Messages :           복제O,적시성中下, 대량쓰기中,대량읽기上,응답성上 // 동일 
+     . Batch / ETL :        복제O, 적시성下, 대량쓰기上, 대량읽기上, 응답성上 // 배치 주기에 따른 적시성 감소 
+     . Service Interface :  복제X, 적시성中, 대량쓰기上, 대량읽기下, 응답성上 // 서비스를 거쳐서 적시성, 대량 조회 성능 저하 
+     
+- 대량 데이터 처리를 위한 분산 설계 - 읽기분산 
+  > Read replica 방안 
+     . Streaming replica(sync) : 적시성上, 동일DB // DB자체에서 sync replica 지원해야 함. 성능 저하 발생 
+     . Streaming replica(async) : 적시성中上, 동일DB // 상동 , 성능저하 완화 
+     . CDC(Change Data Capture) : 적시성中, 동일DB아니여도 됨 // CDC 솔루션에 의존성
+     . Queue + Avro : 적시성中下, 동일DB 아니여도 됨 // Master Node가 일반 RDB아니여도 됨 
+  > N slave 처리 방안 
+     . DNS를 이용한 구성방안 : 라운드로빈으로 slave IP 반환, 노드상태 변경시 DNS정보 업데이트. (=RDS) 
+     . Middle Tier를 활용한 방안 : 커넥션이 고르게 분포될 수 있음. 노드 확장시 middle tier 재기동 필요 
+     . AP와 DB사이에 L4를 사용하는 방안 : 응답성 저하 없음. Node 추가 발생시 작동 중단 없음. 오류 발생시 세밀한 제어 불가 
+     
+- 대량 처리를 위한 분산 설계 - 쓰기분산 
+  > Aggreation 구현 방안 
+      . DBLink(remoteDB) : 실시간성上,쿼리복잡성上,DB노드간조인中,업무중요도下
+      . Aggregated DB : 실시간성上, 쿼리복잡성上,DB노드간조인上,업무중요도上 //개별적으로 나누어져있는 노드 정보를 하나의 DB에 축적하여 view 제공 
+      . Batch/ETL : 실시간성下,쿼리복잡성中,DB노드간조인中,업무중요도中
+      . Aggregated Module : 실시간성中,쿼리복잡성下,DB노드간조인下,업무중요도下
+- 대량 처리를 위한 분산 설계 -  Hot&Cold 데이터 
+      . 스토리지를 Hot / Warm / Cold로 구성 (볼륨, 객체크기, 응답성, 지속성,요청빈도,비용을 고려하여 설계 
+  
+1-1-2-3) 구성 요소 설계 
+- 서버 
+- 스토리지  : S3 
+- 네트워크 : Region / AZ / VPC / Subnet / Routing Table / Route 53 
+- DB : RDS, EC2 + DB engine , Redshift, DynamoDB 등 
+- 소프트웨어 : Route53, CloudFront, S3, ELB, EC2, AutoScaling, RDS 
+- 보안 : VPC(Network ACL, Security Group) , IAM, WAF
+1-1-2-4) 가용성/확장성 
+1-1-2-5) 백업/복구 설계 
+
+----------------------------------------------------------------------------------------------
+1-2) Azure 
+1-2-1) 개발 가이드 
+1-2-1-1) 아키텍처 
+- Azure 서비스 유형 
+   . VM : IaaS 형태로 Lift & Shift 유형에 적합함 
+   . Cloud Services : Windows VM 환경만 가능하며 .NET 환경 개발시에만 검토 
+   . App Services : Windows/Linux VM 기능 제공하며 대부분의 사례에 적합함 
+   . Service Fabric : microservice 를 사용하도록 기존 아키텍처를 변경하는 경우 
+1-2-2) 아키텍처 가이드 
+ - 서버 : VM, App Service, Service Fabric, ACS(container), Azure Functions, Azure Batch, Cloud Service
+ - 스토리지 : 
+    . Blob : 액세스 빈도에 따른 계층 구성 가능 (block blob, page blob, append blob) 
+    . Table 
+    . Queues 
+    . Files 
+    . Disks  : 계정연계 불필요, SSD 사용가능 
+ - 네트워크 : Region, VNet(=vpc), LB(ELB), App GW(ALB), Traffic Manager, DNS, VPN GW, ExpressRoute, CDN, NW Watcher
+ - 보안 : NSG 설정 
+ - DB : SQL Database (RDS), DocumentDB(DynamoDB), Table Storage(SimpleDB), SQL DW(Redshift), RedisCache(ElastiCache)
+ - 소프트웨어 : VM, DNS, CDN, BlobStorage, VMSS + PAAS + AutoScaling(autoScaling), SQLDB, CosMosDB, Webapp 
+----------------------------------------------------------------------------------------------
+1-3) GCP 
+1-3-1) 개요 
+- 프로젝트와 리소스 
+   . 리소스 계층구조 : ORG < Folders < Projects < Resources (<---- 포함)
+   . 조직(org)이 최상위 루트 노드로 조직 관리자는 모든 클라우드 리소스에 대한 포괄적 제어. 프로젝트 생성자는 세분화된 프로젝트의 생성과 제어를 할 수 있다. 
+   . IAM : 리소스 계층구조에 따라개별적인 보안정책 적용 가능. 상위의 정책은 하위 리소스에 상속됨. 덜 제한적인 상위 정책이 더 제한적인 정책을 재정의(overwrite) 한다. 
+- GCP 사용 
+   . GCP console 
+   . GCloud console mobile app 
+   . GCloud SDK
+   . RestfulAPI
+1-3-1) 빅데이터와 머신러닝 
+- GCP 기반 빅데이터 분석 활용시 장점 
+   . No-Ops (운영 비용 필요 없음) 
+   . 스케일 (30초 동안 8600개의cpu 3600개의 disk 사용) 
+   . 비용 : 4TB, 1000억개의 레코드 분석에 20달러 소요 (5달러/TB) 
+   . 클라우드 스케일 성능 : 4TB, 1000억개 레코드 분석에 30초 
+- GCP 데이터 분석 파이프라인 
+   > Capture  
+      . Google App Engine 
+      . Cloud Logs
+      . Firebase 
+      . Cloud Pub/Sub
+      . Cloud IoT Core 
+   > Process 
+      . Cloud Dataflow 
+      . Cloud Dataprep 
+   > Store 
+      . BigQuery Storage(Table) 
+      . Cloud BigTable(NoSQL) 
+      . Cloud Storage(File)
+   > Analyze 
+      . BigQuery Analytics(SQL) : GCP의 클라우드 기반 DW로 SQL을 통한 분석 수행. 완전 관리형 및 서버리스 
+      . Cloud Dataflow : GCP 관리형 데이터 파이프라인 : Compute Engine 인스턴스를 사용해서 데이터 처리(auto-scaling)
+      . Dataproc(Managed spark + Hadoop) : 관리형 하둡. onprem 하둡을 쉽게 이전. 클러스터 생성(90sec) 이후 빠르게 분석 후 즉시 삭제. 
+   > Use  
+      . Cloud Datalab 
+      . Data Studio 
+
+----------------------------------------------------------------------------------------------
+
+
+2. Kubenetes 기반 솔루션 가이드 상세 
+2-1) Azure : AKS(Azure K8s Service) 제공
+2-1-1) Azure Container Registry(ACR) 
+- 99.9% SLA 제공하며 프리미엄 가격정책(SKU)의 경우 DR을 염두한 데이터 복제 옵션(GEO replica) 제공한다. 
+
+2-1-2) CI/CD 구성 
+ [Source Control]에 소스코드 푸쉬  -> [Build Pipeline]에서 성공한 빌드에 대해 릴리즈 트리거 -> [Release Pipeline] 에서 [ACS]로 배포 수행  -> [ACS]서비스 수행 
+                                  |                                                                                                             ^        
+                                도커라이즈    -> 도커 컨테이너 이미지 생성 -------------- 이미지를 Registry에 푸쉬 --------> [ACR]에 등록 -----------|   컨테이너화 
+
+2-1-3) 로그분석 및 모니터링
+- Application Insight : 진단 설정할 로그 종류 및 수집 방법(log, metrix)을 선택하면 로그 분석 작업이 가능 
+   . 클러스터 모니터링 : cpu 사용률, mem 사용률, 노드 개수, 활성pod 개수 등
+   . 노드, 컨트롤러, 컨테이너 모니터링
+   .  Application Map 확인 
+- Log Analytics 활용 : 로그에 대한 쿼리 수행 
+- 데이터 보관주기 : 기본 90일, 장기 보관 필요 시 로그를 추출하여 별도로 관리해야 한다. 
+
+
+2-1-4) AKS 아키텍처 가이드
+- Azure에서는 다양한 종류의 container service를 제공
+   . AKS(Azure k8s Service) : 완벽한 관리형 k8s환경을 제공. container ochestration 상관 없이 쉽게 배포/관리. 
+   . ACI(Azure Container Instances) : 컨테이너 서비스를 제공하는 VM을 직접 관리하지 않고 container를 수행함. 여러 container 간 서비스는 별도 작업 필요. 
+   . Container services : Azure portal, cli, api 기능이 포함된 SLA 서비스로 표준 컨테이너 ochestration 도구(DC/OS, Docker Swarm, k8s)를 선택하고 구성가능. ACS engine은 OSS로 운영 담당자가 직접 모든 서비스를 관리할 수 있음 
+   
+   . Service Fabric Clusters : 클라우드 네이티브 app 개발/인프라 관리를 간편하게 제공. Enterprise 환경의 응용프로그램 개발 및 관리 용도. 
+   . App Services : 기존에 등록된 도커 컨테이너 이미지를 가져와서 대규모로 쉽게 배포하고 실행. Azure Functions(이벤트) 환경. 
+
+2-2) AWS EKS 
+2-2-1) EKS(Elastic K8s Service) 구성 
+- 사전작업 
+     . IAM 계정 생성 -> EKS role 생성 -> VPC 생성 -> IAM role 연결(cloud9)환경 생성 -> K8s 설치 -> Helm 설치
+       -> EKS cluster 생성 -> 대쉬보드 구성 -> (App auto-scaling 구성) 
+
+- ECR(Elastic Container Registry) 사용 
+   . Registry 생성 -> IAM 연계 (docker login) 
+   
+- CodePipeline : 어플리케이션 및 인프라 업데이트를 위한 릴리즈 파이프라인 자동화하는 완전관리형 지속 전달 서비스 
+- 로그분석 및 모니터링 
+   . K8s 대쉬보드 활용 
+   . EFK(fluentd -> ES -> kibana) 서비스 활용 
+
+2-2-2) EKS 아키텍처 가이드 
+- Source (CodeCommit) -> Build(CodeBuild)  ---> deploy(ECS, EKS, Fargate, EC2)           // CodePipeline 으로 관리 
+- Contarol Plane (ECS, EKS) , Data plane(Fargate, EC2)로 구성 
+
+- EKS : K8s를 사용하는 container 기반 app 관리형 환경 
+- ECS : 클러스터에서 Docker container를 실행, 중지 관리하는 컨테이너 관리 서비스. 시작유형으로 fargate, ec2 선택 가능 
+- Elastic Beanstalk : 웹 app/service 를 배포, 확장, 관리하기 위한완전 관리형 서비스 
+- Fargate : 서버리스 컴퓨팅 엔진으로 사용할 리소스 및 네트워크 설정을 통해 container 를 실행 
+
+       
+
+
+2-3) Google GKE 
+2-3-1) Container registry 제공 
+2-3-2) CI/CD 구성 
+- 전통적 CI/CD : Ansible을 활용하여 app 코드 배포 (jenkins 연계--> 피닉스 서버 아키텍처) 
+- Jenkins 활용 : Helm 사용(k8s 으용프로그램 설치 및 수명주기 관리하는 오픈소스 패키징 도구), GCP market place 활용 
+
+----------------------------------------------------------------------------------------------
+
+3.Serverless Computing 
+3-2) 서버리스 컴퓨팅이란 무엇인가? 
+
+3-2-1) 개요 
+- CSP가 인프라 및 OS(kernel) 영역을 제공하고, 사용자는 프로그램 코드(개발)에만 집중 할 수 있도록 한다.(program language runtime) 
+- On-premise > VM > Container > Serverless computing 으로 변화 함 
+- Serverless = FaaS (Function As A Service) 또는 Function PaaS 라고도 하며, 코드 실행 비용만을 청구한다. 
+
+3-2-2) 예시 
+- AWS Lambda 
+- MS Azure Function 
+- Google Cloud Functions
+- IBM Cloud Functions 
+
+3-3) 서버리스 컴퓨팅 특징 
+3-3-1) 특징/장점
+- 사용자가 관리할 서버가 없다. 
+- 이벤트 기반으로 수행된다. 
+- 개발 생산성이 높아진다. 
+- 부하에 따라서 자동으로 scale-out 된다. 
+- 프로그램 수행한 만큼 비용을 지불한다. 
+
+3-3-2) 단점 
+- 구동시간이 제한된다. 
+- 동시의 실행수가 제한된다. 
+- 공급 업체에 종속된다. 
+- 신기술 적용에 대한 불안감 및 문서 부족 
+
+3-3-3) 동작 순서 
+- 이벤트 > 서버리스 서비스를 제공하는 서버에서 container를 할당하거나 확장 > 함수 코드의 무결성을 체크 > 이벤트로 함수소스 호출 > 함수 수행 > 출력 > 컨테이너 회수 
+
+3-4) 도입 고려사항 
+- 벤더에 종속됨 > (오픈소스 서버리스 컴퓨팅 사용 대체)
+- 업체별 상이한 SLA >  (AWS 는 명확히 없음, GCP, Azure, IBM은 제공하나?) 
+- 복잡한 운영 관리 > 로그분석/보관 > 필요 권한만 사용하도록 설정 (로그, 감사, 권한 관리의 복잡성) 
+- 다양한 제약사항 > 각 제약사항을 고려하여 각 case 별로 예외 처리를 수행해야 한다.
+   . 최대 실행 시간 > GCP 별로 9 ~ 15분의 최대 실행시간의 제한이 존재(오래 도는 함수는 여러개로 쪼개던가, Server-full 서비스 사용. )  
+   . 최대 동시 실행 수 > CSP 별로 람다 함수 동시에 실행할 수 있는 실행 수의 제한이 있다. (동시실행 수 오류에 대한 예외처리가 필수다) 
+   . 콜드 스타트 지연시간 > (콜드 스타트는 웜스타트 보다 약 100ms ~ 10초의 지연시간이 발생하며, 이를 고려한 설계를 해야 한다) 
+   
+
+3-6) 아키텍처 설계 
+3-6-1) 설계 고려사항 
+- 적용 영역 선정 
+   . 신규 소규모 서비스 > 빠르게 출시해야 하는 소규모 웹사이트나 모바일 어플리케이션 
+   . Add-On > 기존 시스템에 기능을 추가할 때 (기존 시스템을 해야한다면 단계적으로 마이그레이션-스트랭글러strangler 패턴)
+   . Event Driven Migration > 기존 아키텍처를 event-driven 으로 전환하는 경우 
+   . Proxy API 서버 > 폐쇄망에서 외부 데이터를 내부로 가져올 때 사용??
+   . Batch 처리 > 지속적으로 수행되는 작업이 아닌경우 효율적(단, 제한시간을 고려한 설계 필요) 
+   . Stream Processing > 서버리스 컴퓨팅 활용 및 분석 시 사용량 만큼만 비용 발생
+
+- 적용 아키텍처 선정
+   . 파일처리 : 파일에 대한 이벤트 감지 후 서버리스 컴퓨팅으로 이를 처리함 
+      > AWS 
+          Input       --->    Function    ---->    Output
+      (S3, EC2, SNS 등)        (Lambda)         (S3, RDS, EC2, DynamoDB, Redshift 등) 
+      
+
+   . 실시간 스트림 처리  : 실시간 데이타로부터 필터 및 분석 수행 
+       > AWS
+                Input       --->   Filter#1    --->    Filter      --->     Output
+      (Kinesis, DynamoDB 등)       (Lambda)           (Lambda)             (S3, RDS, EC2, DynamoDB, Redshift 등) 
+       
+       
+ . 백엔드 시스템 : Restful API 구성하여 백엔드 서비스 제공 
+       > AWS
+            Presentation Layer        --->     Business Layer        --->  Data Layer
+       (Route53, CloudFront,             (API Gateway, Lambda)       (RDS, EC2 DB, DynamoDB 등) 
+       S3, EC2, ELB, IoT 서비스 등) 
+
+  . 타이머 기반 아키텍처 : 타이머를 이용하여 일정시간마다 이루어져야 하는 비즈니스 
+       > AWS
+            Timer                 --->     Function       --->  Output 
+       (CloudWatch Event rule)             (Lambda)       (SES, EC2+AMI 등) 
+       
+- 아키텍처 설계 
+    . Lambda 사이징 : 메모리에 따라 CPU 성능이 자동으로 적용. 128MB 부터 3008까지 64MB 단위로 구분 
+                     높은 메모리로 짧은 시간 실행하는 것이 더 저렴할 수 있으니 적절히 선택
+    . 인터페이스 : CSP 서비스들과 연계하여 비즈니스 요구사항에 맞게 이벤트 트리거를 사용 
+    . 스토리지   : 서버리스는 휘발성 스토리지를 사용함으로 보관할 데이터는 별도 저장소를 활용 
+    . 네트워크   : 내/외부망 구분. 내부망에 함수가 위치하면 제약사항이 많아짐으로 외부망에 두는 것을 권고 
+    . 보안       : 함수를 실행하기 위한 권한과서비스를 연결하기 위한 인증/권한이 필요
+    . 서비스 연계 : 연계되는 서비스들의 특징 및 제약사항을 확인하여 설계 
+    . 동시 실행 수: 자동 확장되지만, 기본설정이 충분하지못하면 지연현상이 발생할 수 있음 
+    . 콜드스타트 지연: 지연시간을 고려하여 설계 
+    
+3-6-2) 아키텍처 구성 
+3-6-2-1) 개요 
+- 이벤트 트리거 > 처리 > 저장 3개의 layer로 구성되어 있음. 
+- 트리거 
+   . HTTP : AWS APIGateway, 기타CSP(기본제공)
+   . Storage : AWS S3, Azure Blob Storage, Google Cloud Storage
+   . Message Queue : AWS SQS, AWS SNS, Azure Queue storage, Service bus, Google pub/sub 
+   . Timer : AWS CloudWatch event, Azure Timer, Google(n/a), IMB(/whisk.system/alarms) 
+   . Data Stream : AWS Kinesis, Azure event hubs, Google pub/sub IBM Message Hub
+   . NoSQL : AWS DynamoDB, Azure Table Storage, CosmosDB, Google(n/a) IBM(Cloudant) 
+   . SDK
+   . 기타 
+   
+- 처리 : 함수를 작은 기능 코드로 작성, 동작시간은 기본 3초 미만 최대 10초 정도 구성, 파일 처리 단위로 구성 
+   . Function : AWS lambda, Azure Functions, Google Functions
+   . WorkFlow : AWS Step Functions, Azure logic Apps
+
+   
+       
+- 저장 : 
+   . Storage : AWS(S3, EC2+EBS), Azure(Blob, VM+Storage), Google(Google cloud storage), IBM(IBM Object storage) 
+   . NoSQL : AWS(DynamoDB, ES), Azure(TableStorage), Google(Datastore,Bigtable), IBM(Cloudant) 
+   . In-memory cache : AWS(ElastiCache), Azure(Redis Cache), google(Memorystore for Redis), IBM(Database for Redis) 
+   . Database : AWS(RDS, EC2+EBS), Azure(SQL DB, VM+Storage), Google(CloudSQL, CloudSpanner), IBM(DB2onCloud,DBforPostgreSQL)
+   . DW : AWS(Redshift), Azure(SQL DW), Google(Bigquery), IBM(DB2 Warehouse on Cloud) 
+   
+   . DB Warehouse 
