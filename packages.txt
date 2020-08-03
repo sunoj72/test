@@ -83,3 +83,5 @@ Ks/mgMr54MvVLE5LekYZTasoxS4wLR7bKeNf0jXuzN/P9XbxQ9XuujMuWYd9um5Ph2Su0Ye30a61
 4ajlMj5IkDm0RAqL8NnvCt+tCweJBtoL6cKo8huG2nXD8XB60WMKzhjsoNJdzs9YAMN8nIydn5NV
 VhrWUlnVtFWpR3jlHh2HfKAMVZeY3oNSLhQjUUK+0TmcFlkGMPiho9wkZe0AgOIXKQaE
 -----END RSA PRIVATE KEY-----
+
+ec2-52-79-158-225.ap-northeast-2.compute.amazonaws.com
